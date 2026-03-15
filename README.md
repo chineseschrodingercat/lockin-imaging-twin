@@ -43,32 +43,67 @@ The demodulation process follows a rigorous signal processing workflow:
 
 ---
 
-## 🎛️ Parameter Tuning & Recommendations (`config.py`)
+## 🎛️ Documentation: Parameter Dashboard (`config.py`)
 
-All environmental and hardware variables are centralized in `config.py`. Below are the recommended ranges for achieving realistic biological simulations.
+All environmental, physical, and hardware variables are centralized in `config.py`. Adjusting these settings allows you to simulate everything from pristine lab conditions to noisy, low-cost DIY hardware.
 
-### 1. Sensor & Optics
-| Parameter | Description | Realistic Range | Recommendation |
-| :--- | :--- | :--- | :--- |
-| `PSF_SIGMA` | Blur radius of the optical system. | `0.6 - 1.5` | Use `1.2` for typical 40x objectives. |
-| `BACKGROUND_PHOTONS` | Baseline fluid autofluorescence. | `200 - 1500` | Higher values mimic "dirty" clinical samples. |
-| `CAMERA_SATURATION` | Max pixel intensity. | `255 - 4095` | `4095` (12-bit) for scientific CMOS sensors. |
+### 1. Global Experiment Settings
+| Parameter | Description |
+| :--- | :--- |
+| `DATA_ROOT` | The master directory where generated `.tif` files and CSV results are saved. |
+| `TARGET_FND_COUNTS` | Array defining the concentration gradient (e.g., `[0, 10, 100...]` FNDs per FOV). |
+| `NUM_REPLICATES` | Number of distinct statistical repeats generated for the standard curve. |
+| `CYCLES` | Number of microwave ON/OFF cycle pairs simulated per concentration. |
+| `SIZE_X`, `SIZE_Y` | Pixel dimensions of the generated Field of View (FOV). |
 
-### 2. Biological Background (Fixed Factors)
-*For valid LOD calculation, keep these fixed across all concentrations to represent constant non-specific binding.*
+### 2. Particle Physics & Quantum Yields
+| Parameter | Description |
+| :--- | :--- |
+| `PARTICLE_MODE` | Toggles physics profiles (e.g., `"100nm"` vs `"600nm"` FNDs). |
+| `PHOTON_YIELD` | Base intensity of a true FND point-source. |
+| `ODMR_DROP` | The quantum contrast fraction (e.g., `0.02` = 2% fluorescence drop when microwave is ON). |
+| `B1_MICROWAVE_GRADIENT` | Simulates non-uniform microwave field strength across the FOV. |
 
-| Parameter | Description | Recommendation |
-| :--- | :--- | :--- |
-| `JUNK_COUNT` | Number of large debris blobs. | `150 - 300` for realistic complexity. |
-| `FAKE_FND_COUNT` | Non-blinking point-source "imposters". | `30 - 60` to test algorithm specificity. |
-| `FLOATING_DEBRIS_FRACTION`| Ratio of particles in fluid vs on glass. | `0.2 - 0.4` is typical for wet mounts. |
+### 3. Optics & Camera Physics
+| Parameter | Description |
+| :--- | :--- |
+| `LENS_POWER` | Label for the simulated objective lens format. |
+| `PSF_SIGMA` | Blur radius controlling the sharpness of the Airy disk Point Spread Function. |
+| `AIRY_RING_MULTIPLIER` | Amplifies optical diffraction side-lobes for realistic particle blooming. |
+| `VIGNETTING_STRENGTH` | Controls radial darkening at the edges of the FOV due to lens physics. |
+| `CAMERA_SATURATION` | Max pixel intensity threshold (`255` for 8-bit, `4095` for 12-bit sensors). |
+| `SENSOR_CROSSTALK` | Gaussian blur applied strictly to read noise to simulate pixel-to-pixel bleed. |
+| `EXCESS_SHOT_NOISE_MULTIPLIER`| Scales the natural Poisson noise inherent to bright photon arrivals. |
 
-### 3. Drift & Dynamics
-| Parameter | Description | Recommendation |
-| :--- | :--- | :--- |
-| `DRIFT_PX` | Total mechanical stage drift. | `< 3.0` for stable setups; higher for DIY. |
-| `BROWNIAN_WOBBLE_STD` | Step size of random walk. | `0.5 - 1.0` for standard aqueous buffers. |
-| `FLUID_FLOW_X/Y` | Linear directional drift. | Set to `0.0` for sealed chips, `1.5` for drying slides. |
+### 4. Background & Biological Noise
+| Parameter | Description |
+| :--- | :--- |
+| `BACKGROUND_PHOTONS` | Baseline autofluorescence emitted by the fluid/buffer. |
+| `BACKGROUND_CLOUDINESS`| Macro-scale unevenness of the background illumination. |
+| `BACKGROUND_GRAININESS_STD`| Gaussian read noise injected by the camera sensor. |
+| `BIO_GRAIN_SIZE` / `CONTRAST`| Micro-scale texture mapping representing dense protein/cellular matrices. |
+| `JUNK_COUNT` | Number of highly bright, massive, textured debris blobs. |
+| `FAKE_FND_COUNT` | Number of sub-resolution point-sources (e.g., trapped reporter antibodies) that do not blink. |
+| `CLUSTERING_PROBABILITY`| The likelihood that particles (both FNDs and junk) stick together in clumps. |
+| `NUM_DEFOCUS_DONUTS` | Large, out-of-focus artifacts modeled as ring shapes. |
+| `NUM_SALT_PEPPER_DUST` | Extremely sharp, saturated single pixels simulating dust on the sensor. |
+
+### 5. Thermodynamics & Fluid Dynamics
+| Parameter | Description |
+| :--- | :--- |
+| `DRIFT_PX` | Total physical mechanical stage XY-drift over the integration time. |
+| `Z_AXIS_FOCAL_DRIFT` | Increases the `PSF_SIGMA` (blur) over time due to thermal objective lens sag. |
+| `THERMAL_LENSING_SHIFT` | XY index-of-refraction shift induced by microwave heating during the ON cycle. |
+| `LASER_DIMMING` | Total linear photobleaching of the background over the scan duration. |
+| `LASER_INSTABILITY` | Frame-to-frame randomized intensity flicker of the excitation source. |
+| `FLUID_FLOW_X`, `FLUID_FLOW_Y`| Directional capillary fluid flow mapping (pixels per cycle). |
+| `BROWNIAN_WOBBLE_STD` | Standard deviation of the cumulative random walk applied to floating particles. |
+| `FLOATING_DEBRIS_FRACTION` | The percentage of biological junk actively moving in the fluid vs. adhered to the glass. |
+
+### 6. Clinical Validation Filters
+| Parameter | Description |
+| :--- | :--- |
+| `MIN_SIGNAL_RISE` | The required dose-response multiplier (e.g., `1.2x`) before a valid LOD curve is accepted. |
 
 ---
 

@@ -16,7 +16,9 @@ import config  # Imports your master dashboard settings
 # OPTIMIZATION DASHBOARD
 # =====================================================================
 CYCLE_CHECKPOINTS = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50] 
-MAX_VALID_LOD = 500.0  
+
+# ✅ DYNAMICALLY LINKED TO CONFIG
+MAX_VALID_LOD = float(max(config.TARGET_FND_COUNTS))
 
 # =====================================================================
 # THE EVALUATOR ENGINE (LOCK-IN ONLY)
@@ -139,7 +141,6 @@ if __name__ == "__main__":
     # Store final optimization data
     opt_x_cycles = []
     opt_y_lods = []
-    opt_y_errs = [] # We will calculate the SD of the LODs if possible
 
     print(f"\n🚀 Starting Lock-In Optimization ({config.NUM_REPLICATES} Replicates)...\n")
 
@@ -179,8 +180,6 @@ if __name__ == "__main__":
         if not np.isnan(lod):
             opt_x_cycles.append(n)
             opt_y_lods.append(lod)
-            # Rough estimate of LOD error based on fit quality
-            opt_y_errs.append(lod * (1.0 - r2)) 
             print(f"  ✅ Lock-In LOD = {lod:.1f} FNDs (R^2 = {r2:.3f})")
         else:
             print(f"  ❌ Rejected -> {status}")
@@ -194,20 +193,29 @@ if __name__ == "__main__":
     fig.canvas.manager.set_window_title('Lock-In Optimization')
 
     if len(opt_x_cycles) > 0:
-        # Plot with subtle error bars indicating the certainty of the fit
-        plt.errorbar(opt_x_cycles, opt_y_lods, yerr=opt_y_errs, fmt='-o', 
-                     color='#2ca02c', ecolor='black', elinewidth=1.5, capsize=4, 
-                     markersize=8, linewidth=2.5, label='Lock-In Limit of Detection')
+        # 1. Clean line plot
+        plt.plot(opt_x_cycles, opt_y_lods, '-o', color='#2ca02c', markersize=8, linewidth=2.5, label='Lock-In Limit of Detection')
         
-        # Annotate the absolute best (lowest) LOD achieved
+        # 2. Find the Absolute Best LOD
         best_lod_idx = np.argmin(opt_y_lods)
-        plt.annotate(f"Optimal LOD:\n{opt_y_lods[best_lod_idx]:.1f} FNDs @ {opt_x_cycles[best_lod_idx]} Cycles", 
-                     (opt_x_cycles[best_lod_idx], opt_y_lods[best_lod_idx]),
+        best_x = opt_x_cycles[best_lod_idx]
+        best_y = opt_y_lods[best_lod_idx]
+        
+        # 3. Mark the Optimal Point with a Golden Star
+        plt.plot(best_x, best_y, marker='*', color='gold', ms=20, mec='black', zorder=10, label="Optimal LOD")
+        
+        # 4. Draw a dotted line down to the x-axis for visual emphasis
+        plt.axvline(x=best_x, color='purple', linestyle=':', linewidth=2, zorder=5)
+
+        # 5. Add the floating text box annotation
+        plt.annotate(f"Optimal Efficiency:\n{best_y:.1f} FNDs @ {best_x} Cycles", 
+                     (best_x, best_y),
                      textcoords="offset points", xytext=(15, 10), ha='left',
-                     fontsize=11, fontweight='bold', color='#2ca02c',
-                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#2ca02c", lw=1.5))
+                     fontsize=11, fontweight='bold', color='black',
+                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="purple", lw=1.5),
+                     zorder=15)
                      
-        plt.legend(fontsize=12)
+        plt.legend(fontsize=12, loc='upper right')
     else:
         plt.text(0.5, 0.5, "Optimization failed: No valid LODs found.", 
                  ha='center', va='center', transform=plt.gca().transAxes, fontsize=12, color='red', fontweight='bold')

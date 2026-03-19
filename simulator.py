@@ -31,11 +31,18 @@ def simulate_single_fov(rep, fnd_count, psf_start, psf_end, xx, yy, b1_gradient,
     active_fnd = config.FND_PHYSICS[particle_mode]
     
     conc_dir = os.path.join(dynamic_data_root, f"Rep_{rep}", f"{fnd_count}_FNDs")
-    on_dir, off_dir = os.path.join(conc_dir, "ON"), os.path.join(conc_dir, "OFF")
-    vis_dir = os.path.join(conc_dir, "VISUAL_RED") 
+    on_dir = os.path.join(conc_dir, "ON")
+    off_dir = os.path.join(conc_dir, "OFF")
+    
+    # --- VISUAL RED SUBFOLDERS ---
+    vis_dir = os.path.join(conc_dir, "VISUAL_RED")
+    vis_on_dir = os.path.join(vis_dir, "ON")
+    vis_off_dir = os.path.join(vis_dir, "OFF")
+    
     os.makedirs(on_dir, exist_ok=True)
     os.makedirs(off_dir, exist_ok=True)
-    os.makedirs(vis_dir, exist_ok=True)
+    os.makedirs(vis_on_dir, exist_ok=True)
+    os.makedirs(vis_off_dir, exist_ok=True)
     
     debris_static = np.zeros((size_y, size_x))
     debris_floating = np.zeros((size_y, size_x))
@@ -136,15 +143,18 @@ def simulate_single_fov(rep, fnd_count, psf_start, psf_end, xx, yy, b1_gradient,
         def save_outputs(electrons, directory, vis_directory, filename):
             img_16bit = electrons.astype(np.uint16)
             Image.fromarray(img_16bit, mode='I;16').save(os.path.join(directory, f"{filename}.tif"))
-            frame_max = np.max(electrons)
-            if frame_max == 0: frame_max = 1.0 
-            img_8bit = np.clip((electrons / frame_max) * 255, 0, 255).astype(np.uint8)
+            
+            # --- STRICT LINEAR MAPPING ---
+            # Do NOT use np.max(electrons) as the denominator, as it artificially inflates contrast frame-by-frame.
+            # We map the theoretical 12-bit max (e.g. 4095) directly to 8-bit (255)
+            img_8bit = np.clip((electrons / config.CAMERA_SATURATION) * 255, 0, 255).astype(np.uint8)
+            
             rgb_vis = np.zeros((size_y, size_x, 3), dtype=np.uint8)
             rgb_vis[:, :, 0] = img_8bit 
             Image.fromarray(rgb_vis, mode='RGB').save(os.path.join(vis_directory, f"{filename}_RED.png"))
 
-        save_outputs(apply_camera_physics(off_pure, dx, dy), off_dir, vis_dir, f"frame_{i:02d}_OFF")
-        save_outputs(apply_camera_physics(on_pure, dx, dy), on_dir, vis_dir, f"frame_{i:02d}_ON")
+        save_outputs(apply_camera_physics(off_pure, dx, dy), off_dir, vis_off_dir, f"frame_{i:02d}_OFF")
+        save_outputs(apply_camera_physics(on_pure, dx, dy), on_dir, vis_on_dir, f"frame_{i:02d}_ON")
         
     return f"Simulated: Rep {rep} | {fnd_count} FNDs"
 
